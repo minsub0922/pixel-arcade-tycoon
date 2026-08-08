@@ -62,4 +62,4 @@ DONE: <태스크 제목>
 
 ## Field Notes
 
-- (에이전트가 추가)
+- e2e 가 전부 실패하면 먼저 `pkill -f vite` — 이전 세션이 남긴 죽은 dev 서버를 Playwright 가 재사용(`reuseExistingServer`)하다 전멸하는 패턴. 서버 정리 후 재실행하면 정상. (2026-08-09 T1 에서 확인)

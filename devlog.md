@@ -1,5 +1,11 @@
 # devlog — AI 활용 기록 (제출 문서의 재료)
 
+## 2026-08-09 02:18 · Ralphy iteration 1 (T1) + Claude Code 마감
+
+- 목업 인라인 스프라이트 엔진을 `src/art/sprites.ts`(TS, 25.6KB)로 이식 — 팔레트·캐릭터 조립(16×19)·아이콘·캐비닛·타일 전부. `#art` 데모 시트 + 유닛 8종 + e2e 2종 작성.
+- Ralphy 프로세스가 verify/커밋 직전 중단됨 → Claude Code 가 작업 회수: 죽은 dev 서버(전체 e2e 실패 원인) 정리 후 verify green 확인, T1 완료 처리. 증거: evidence/T1-art-sheet.png.
+- 배움: 자율 루프 중단 시에도 워킹 트리의 작업은 검증만 통과하면 회수 가능 — "검증 가능한 작은 태스크" 구조 덕분.
+
 형식: 날짜/주체 · 무엇을 · 어떻게(프롬프트/도구) · 결과/배움. 각 Ralphy 이터레이션이 3~5줄 append.
 
 ## 2026-08-09 · Claude Code (setup)

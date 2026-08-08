@@ -3,7 +3,7 @@
 
 tasks:
   - title: "T1 도트 스프라이트 시스템이 화면에서 살아 움직인다"
-    completed: false
+    completed: true
     description: |
       Player outcome:
       /#art 데모 라우트에서 팀원 4명·손님 4명(4포즈), 감정 아이콘 16종, 캐비닛 5스킨×4장르,
