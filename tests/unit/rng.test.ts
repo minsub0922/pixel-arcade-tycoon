@@ -28,6 +28,24 @@ describe('seeded rng', () => {
     }
   })
 
+  it('fork 스트림은 기본 스트림과 독립 (연출 스킵 결정성)', () => {
+    rng.setSeed(42)
+    const a1 = rng.next()
+    rng.fork('fx')() // fx 스트림 소비
+    const a2 = rng.next()
+
+    rng.setSeed(42)
+    const b1 = rng.next()
+    // 이번엔 fx 를 소비하지 않음 — 기본 스트림 결과는 동일해야 한다
+    const b2 = rng.next()
+
+    expect([a1, a2]).toEqual([b1, b2])
+    rng.setSeed(42)
+    const f1 = rng.fork('fx')()
+    rng.setSeed(42)
+    expect(rng.fork('fx')()).toBe(f1) // fork 자체도 seed 재현 가능
+  })
+
   it('setSeed 로 재현 가능', () => {
     rng.setSeed(123)
     const first = [rng.next(), rng.next(), rng.next()]

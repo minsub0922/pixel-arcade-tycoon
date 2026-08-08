@@ -55,7 +55,6 @@
 | 이미지·스프라이트 | 전량 코드 생성 (외부 이미지 0) | — |
 | 효과음 | Web Audio 절차 생성 (외부 오디오 0) | — |
 | 폰트 NeoDunggeunmo v1.601 | https://github.com/neodgm/neodgm — `public/fonts/` self-host, LICENSE.txt 동봉 | SIL OFL 1.1 |
-| 폰트 Galmuri | https://galmuri.quiple.dev (jsdelivr CDN) | SIL OFL 1.1 |
 | 빌드 도구 | Vite, TypeScript, Vitest, Playwright | MIT/Apache-2.0 |
 | LLM | Google Gemini API (무료 티어) · Cloudflare Workers (무료) | 각 서비스 약관 |
 

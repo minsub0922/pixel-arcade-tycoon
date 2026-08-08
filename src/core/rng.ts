@@ -13,11 +13,28 @@ export function mulberry32(seed: number): () => number {
 
 let current = mulberry32(42)
 let currentSeed = 42
+const forks = new Map<string, () => number>()
 
 export const rng = {
   setSeed(seed: number): void {
     currentSeed = seed
     current = mulberry32(seed)
+    forks.clear()
+  },
+  /**
+   * 파생 스트림 — 연출/fx 는 반드시 fork 를 사용한다.
+   * 게임 상태 로직은 기본 스트림(next/int/pick/roll), 연출은 fork('fx') 등 —
+   * 서로 소비 순서가 독립이라 연출을 스킵해도 상태 결과가 동일하다 (TECH_SPEC §결정성).
+   */
+  fork(label: string): () => number {
+    let f = forks.get(label)
+    if (!f) {
+      let h = 2166136261
+      for (const c of label) h = Math.imul(h ^ c.charCodeAt(0), 16777619)
+      f = mulberry32((currentSeed ^ h) >>> 0)
+      forks.set(label, f)
+    }
+    return f
   },
   seed(): number {
     return currentSeed

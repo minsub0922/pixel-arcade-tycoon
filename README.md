@@ -44,4 +44,4 @@ npm run verify     # 위 전부 (완료 게이트)
 
 ## 에셋·라이선스
 
-외부 이미지·오디오 에셋 없음(전부 코드 생성). 폰트: [NeoDunggeunmo](https://github.com/neodgm/neodgm)(SIL OFL — `public/fonts/` self-host, 라이선스 동봉), [Galmuri](https://galmuri.quiple.dev/)(SIL OFL — CDN). 상세 출처는 `submission/ai-tech-doc.md`.
+외부 이미지·오디오 에셋 없음(전부 코드 생성), 외부 CDN 의존 없음. 폰트: [NeoDunggeunmo](https://github.com/neodgm/neodgm) v1.601 (SIL OFL — `public/fonts/` self-host, 라이선스 동봉). 상세 출처는 `submission/ai-tech-doc.md`.

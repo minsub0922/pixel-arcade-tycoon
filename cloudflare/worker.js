@@ -22,27 +22,33 @@ const SYSTEM = {
     '너는 오락실 재방문 손님이다. 지난번 불만이 개선된 것을 알아챈 한 줄 반응을 한국어로 말하라. 40자 이내, 따옴표 없이.',
 }
 
-function cors(origin, allowList) {
+function corsCheck(origin, allowList) {
   const allowed = allowList.split(',').map((s) => s.trim())
-  const ok = allowed.includes('*') || allowed.includes(origin)
+  const ok = !!origin && (allowed.includes('*') || allowed.includes(origin))
   return {
-    'Access-Control-Allow-Origin': ok ? origin : allowed[0] || '',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'content-type',
-    'Access-Control-Max-Age': '86400',
+    ok,
+    headers: {
+      'Access-Control-Allow-Origin': ok ? origin : 'null',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'content-type',
+      'Access-Control-Max-Age': '86400',
+    },
   }
 }
 
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || ''
-    const headers = { 'content-type': 'application/json', ...cors(origin, env.ALLOW_ORIGINS || '*') }
+    const cors = corsCheck(origin, env.ALLOW_ORIGINS || '*')
+    const headers = { 'content-type': 'application/json', ...cors.headers }
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+    // Origin 없거나 허용목록 밖이면 거부 — 브라우저 외 직접 호출(curl 등)로 열린 릴레이가 되는 것을 막는다
+    if (!cors.ok) return new Response(JSON.stringify({ error: 'forbidden origin' }), { status: 403, headers })
     if (request.method !== 'POST' || new URL(request.url).pathname !== '/generate')
       return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers })
 
-    // best-effort 레이트리밋 (Cache API — 무료, 근사치)
+    // best-effort 레이트리밋 (Cache API — workers.dev 도메인에선 무시될 수 있는 근사 방어. 실질 상한은 maxOutputTokens·무료 쿼터)
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown'
     const minute = Math.floor(Date.now() / 60000)
     const rlKey = new Request(`https://rl.internal/${ip}/${minute}`)

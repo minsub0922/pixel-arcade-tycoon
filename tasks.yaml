@@ -46,7 +46,8 @@ tasks:
       Why: 상태 기계와 렌더 파이프라인의 뼈대. 이후 태스크는 전부 이 위에 얹힌다.
 
       Scope:
-      - core/store.ts (dispatch/subscribe, phase 전환), core/rng.ts (mulberry32), core/save.ts 스텁
+      - core/store.ts (dispatch/subscribe, phase 전환), core/clock.ts (타이밍 단일 소스 — raw setTimeout 금지,
+        step(ms) 가속 지원, TECH_SPEC 참조), core/save.ts 스텁
       - scenes/meeting.ts·arcade.ts 레이아웃 (목업 1a/1b 의 HUD·좌우 패널·씬 골격, 데이터는 초기 상태)
       - 1440×900 스케일 fit (TECH_SPEC), window.__GAME_TEST__ (setSeed/getState/step/dispatch/getTelemetry 최소 구현)
       - GAME_DESIGN §1 상태 기계 타입 정의 (phase: title|plan|meeting|decide|place|open|report|tryout)
@@ -76,6 +77,7 @@ tasks:
       Why: 창작 루프의 시작점. 선택→결과 인과의 첫 절반.
 
       Scope:
+      - src/data/ids.ts (pools/SCHEMA.md 의 ID↔라벨 표를 코드로 — 모든 모듈이 이것만 import)
       - src/data/choices.ts·balance.ts (GAME_DESIGN §2 수치 그대로), core/economy.ts (제작 비용 차감)
       - PLAN 단계 UI: 선택 버튼 그리드(5상태 스타일), 기획 보드 스티커 갱신, 제작 시작 CTA (자금 부족 비활성)
 
@@ -136,8 +138,9 @@ tasks:
 
       Scope:
       - core/sim.ts (GAME_DESIGN §5 판정 수식·방문 규모·유형 분포, 순수 함수 + 유닛 테스트 필수)
-      - OPEN 연출: 손님 스폰·경로 이동(단순 웨이포인트)·플레이·퇴장, 감정 칩·코인 플로트 (art/fx.ts)
-      - 영업 25초 연출 + '결산 보기' CTA. step() 가속 지원
+      - OPEN 연출: 손님 스폰·경로 이동(단순 웨이포인트)·플레이·퇴장, 감정 칩·코인 플로트 (art/fx.ts —
+        연출 난수는 rng.fork('fx'), 상태 난수와 분리)
+      - 영업 15초 연출 + 화면 상단 ⏩ 2× 배속 버튼 + '결산 보기' CTA. clock 경유 타이밍(step() 가속 지원)
 
       Acceptance criteria:
       - 동일 seed 영업 2회 = 동일 방문·동일 판정 (결정성 유닛)
@@ -195,24 +198,50 @@ tasks:
       Why: 수직 슬라이스의 완성. memory·self-improvement 증명 장면.
 
       Scope:
-      - core/memory.ts (방문 이력, 기억 카드 조건, 재방문 대사 트리거), 팀원 EXP/레벨/배지 (GAME_DESIGN §4)
-      - 개선 결정 플로우 (안건 자동 생성 연결), 업그레이드 비용·주차 진행
-      - tests/playtest S1 전체 + S2·S3 완성
+      - core/memory.ts (방문 이력, 기억 카드 조건, 재방문 대사 트리거 — §5 보장 규칙), 팀원 EXP/레벨/배지 (GAME_DESIGN §4)
+      - 개선 결정 플로우 (태그 파생 안건 표 연결), 업그레이드 비용·주차 진행
+      - tests/playtest S1 전체 작성·통과
 
       Acceptance criteria:
-      - S1 기대 상태·텔레메트리 전부 충족 (3분·1.5사이클·재방문 대사 ≥1)
-      - S2: 결정 분기 diff 어서션, S3: 회복 곡선 어서션
+      - S1 기대 상태·텔레메트리 전부 충족 (elapsedVirtualMs ≤ 180000·1.5사이클·재방문 대사 ≥1·첫 rating 3.0~3.8)
       - 기억 카드가 이후 회의 추천 배지에 영향 (+3 보정 유닛)
 
       Verification:
       - command: npm run verify
-      - scenario: S1, S2, S3
-      - expected result: 3개 시나리오 green + 증거 스크린샷 자동 저장
+      - scenario: S1
+      - expected result: S1 green + 증거 스크린샷 자동 저장
 
-      Required evidence: evidence/T7-revisit-line.png, evidence/T7-levelup.png, S1~S3 통과 로그
+      Required evidence: evidence/T7-revisit-line.png, evidence/T7-levelup.png, S1 통과 로그
 
       Dependencies: T6
-      Out of scope: 러너 조작(T8), LLM 라이브(T9)
+      Out of scope: S2·S3 작성(다음 태스크), 러너 조작(T8), LLM 라이브(T9)
+
+  - title: "T7b 결정이 운명을 가른다 — 분기·회복 시나리오 검증"
+    completed: false
+    description: |
+      Player outcome:
+      같은 seed 에서 '재미 우선'과 '완성도 우선'이 눈에 띄게 다른 결산을 만들고(S2),
+      최악 조합도 개선 2회로 회복 곡선을 그린다(S3) — "선택이 의미 있다"의 자동 증명.
+
+      Why: QUALITY_BAR B1 '핵심 선택의 의미'의 증거 생산. T7 과 분리해 fresh context 크기를 지킨다.
+
+      Scope:
+      - tests/playtest S2·S3 작성 (PLAYTEST_SCENARIOS 정의 그대로)
+      - 어서션이 밸런스와 어긋나면 GAME_DESIGN §10 가이드 안에서 balance.ts 조정 (문서·수치 동시 수정)
+
+      Acceptance criteria:
+      - S2: fun/polish/bugs diff + 태그 분포 차이 어서션, 비교 스크린샷 나란히 저장
+      - S3: 저성과(별점 ≤2.5) → 개선 2회 후 별점 +1.0 이상 (rating 윈도우 초기화 규칙 반영)
+
+      Verification:
+      - command: npm run test:e2e
+      - scenario: S2, S3
+      - expected result: 두 시나리오 green
+
+      Required evidence: evidence/T7b-branch-compare.png, evidence/T7b-recovery.png
+
+      Dependencies: T7
+      Out of scope: 신규 기능 (검증 전용 태스크)
 
   - title: "T8 심사자가 직접 조작한다 — 러너 TRYOUT"
     completed: false
@@ -265,9 +294,9 @@ tasks:
       - 대사 길이·금칙(숫자 변경 지시 무시) 검증 유닛
 
       Verification:
-      - command: npm run verify && grep -r "GEMINI" dist/ (매치 0 확인, 빌드 산출물 검사)
-      - scenario: S4
-      - expected result: 세 케이스 모두 무공지 진행
+      - command: npm run verify && ! grep -rq "GEMINI_API_KEY" dist/assets
+      - scenario: S4 (a~e)
+      - expected result: 전 케이스 무공지 진행, 케이스 e 에서 llmMode()==='proxy' 확인
 
       Required evidence: evidence/T9-llm-fallback-trace.txt (llmMode 로그), S4 통과 로그
 
@@ -285,9 +314,11 @@ tasks:
 
       Scope:
       - core/save.ts 완성 (버전 필드, 자동 저장 시점 = phase 전환마다, 오염 방어)
-      - 타이틀 화면(이어하기 분기), 코치마크 3단계 (plan→제작 시작→영업)
+      - 타이틀 화면(이어하기 분기), 코치마크 4단계 (plan→제작 시작→영업→결산의 "!N 안건 배지" 화살표
+        — 1.5사이클을 여는 마지막 클릭까지 안내). 코치마크는 별도 클릭을 소비하지 않는다
+        (안내된 행동 자체가 다음 단계로 진행, A7 클릭 예산 보호)
 
-      Acceptance criteria: S5 green, 코치마크는 1회만 표시(저장에 기록), 코치마크 표시 중에도 조작 가능
+      Acceptance criteria: S5 green(추가 케이스 포함), 코치마크는 1회만 표시(저장에 기록), 코치마크 표시 중에도 조작 가능
 
       Verification:
       - command: npm run test:e2e
@@ -308,14 +339,16 @@ tasks:
 
       Why: QUALITY_BAR B '템포·조작감' — 심사 첫인상.
 
-      Scope: sound.ts (Web Audio 절차 SFX 8종), fx 강화 (기존 이펙트 일괄 점검), 씬 전환 도트 와이프
+      Scope: sound.ts (Web Audio 절차 SFX 8종), fx 강화 (기존 이펙트 일괄 점검), 씬 전환 도트 와이프,
+      tests/playtest S6 작성 (연속 5사이클 안정성·성장 — PLAYTEST_SCENARIOS §S6)
 
       Acceptance criteria: 오디오 컨텍스트는 첫 입력 후 시작(자동재생 정책), 음소거 상태 저장,
-      연출 추가 후에도 S1 텔레메트리(3분) 유지 — 연출이 템포를 깎으면 줄인다
+      S1 중 telemetry.sfxPlayedKinds ≥ 5 어서션 + M 토글 상태 저장 e2e 어서션 (no-op sound.ts 방지),
+      연출 추가 후에도 S1 텔레메트리(elapsedVirtualMs ≤ 180000) 유지 — 연출이 템포를 깎으면 줄인다
 
       Verification:
       - command: npm run verify
-      - scenario: S1 재실행 (시간 예산 재확인)
+      - scenario: S1 재실행 (시간 예산 재확인) + S6
       - expected result: 전 시나리오 green 유지
 
       Required evidence: evidence/T11-fx.png, devlog (사운드 파라미터 기록)
@@ -356,18 +389,21 @@ tasks:
       Scope:
       - README.md 갱신 (플레이 링크, 스크린샷 3장, 로컬 실행법, 조작법)
       - submission/game-intro.md·ai-tech-doc.md 를 최종 구현 기준으로 갱신 (프롬프트 전문, 아키텍처 다이어그램 텍스트,
-        에셋 출처 표 = 전부 코드 생성 + NeoDunggeunmo/Galmuri 폰트 출처, devlog 요약 반영)
-      - 프로덕션 빌드 점검: base 경로, 404 리소스 0, Lighthouse 성능 확인(선택)
+        에셋 출처 표, devlog 요약 반영). HUMAN-ONLY 표기 항목(영상 링크 등)은 건드리지 않는다
+      - scripts/check-bundle.mjs 작성 (dist 자산 합계 < 500KB 검사) + verify 에 배선 (A9)
+      - A10 검사 배선: S1 에 spriteFallbackCount==0 + DOM "TODO" 0건 어서션
+      - 배포 실행: bash scripts/deploy-pages.sh → 라이브 URL 에서 Playwright 로 S1 축소판 1회 green
+        (baseURL=https://minsub0922.github.io/pixel-arcade-tycoon/)
       - QUALITY_BAR A 게이트 전체 재실행
 
-      Acceptance criteria: npm run verify green, dist preview 에서 S1 수동 1회 완주, 문서-구현 불일치 0
+      Acceptance criteria: npm run verify green (check-bundle 포함), 라이브 URL 에서 S1 축소판 green, 문서-구현 불일치 0
 
       Verification:
-      - command: npm run verify && npm run preview
-      - scenario: S1 (preview 빌드 대상)
+      - command: npm run verify && bash scripts/deploy-pages.sh
+      - scenario: S1 (preview 4173 대상) + S1 축소판 (라이브 URL 대상)
       - expected result: 전부 green
 
-      Required evidence: evidence/T13-final-meeting.png, evidence/T13-final-arcade.png, evidence/T13-final-runner.png
+      Required evidence: evidence/T13-final-meeting.png, evidence/T13-final-arcade.png, evidence/T13-final-runner.png, evidence/T13-live-url.png
 
       Dependencies: T12
-      Out of scope: 영상 촬영·PDF 변환·폼 제출 (사람 작업), Pages 배포 트리거는 push 로 자동
+      Out of scope: 영상 촬영·PDF 변환·폼 제출 (사람 작업), Actions 워크플로 복원 (사용자의 gh 토큰 workflow 스코프 필요)

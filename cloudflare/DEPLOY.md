@@ -18,10 +18,10 @@ curl -s -X POST https://pixel-arcade-llm.<계정서브도메인>.workers.dev/gen
 # → {"text":"…"} 이면 성공
 ```
 
-게임에 연결 (두 곳):
+게임에 연결 (두 곳 모두 로컬 `.env` 기준 — 배포도 로컬 빌드로 이뤄진다):
 
-1. **로컬**: `.env` 에 `VITE_LLM_PROXY_URL=<워커 URL>` → `npm run dev` 재시작
-2. **배포(Pages)**: GitHub 저장소 → Settings → Secrets and variables → Actions → **Variables** 탭 → `VITE_LLM_PROXY_URL` 추가 → Actions 에서 Deploy 워크플로 재실행
+1. **로컬 dev**: `.env` 에 `VITE_LLM_PROXY_URL=<워커 URL>` → `npm run dev` 재시작
+2. **배포(Pages)**: 같은 `.env` 가 있는 상태에서 `bash scripts/deploy-pages.sh` 재실행 — 빌드 시점에 URL 이 번들에 포함되어 라이브 모드로 배포된다 (Actions 변수 아님 — 자동 워크플로는 현재 비활성, TECH_SPEC §배포 참조)
 
 미배포/실패 시에도 게임은 pool 모드로 완전 동작한다 (심사 안전).
 

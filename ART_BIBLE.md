@@ -10,7 +10,7 @@
 
 ## 폰트
 
-- **NeoDunggeunmo(NeoDGM)** — `public/fonts/neodgm.woff2` self-host(라이선스 동봉) + `Galmuri11`(CDN) 폴백 + monospace. 로드 실패해도 레이아웃 붕괴 금지.
+- **NeoDunggeunmo(NeoDGM)** — `public/fonts/neodgm.woff2` self-host(라이선스 동봉) + monospace 폴백. 외부 폰트 CDN 사용 금지(심사 환경 네트워크 의존 제거). 로드 실패해도 레이아웃 붕괴 금지.
 - 크기 단계(목업 기준): 9/10/11/12/13/14/15/16/17/19/26px. 볼드 사용 안 함(폰트 특성).
 
 ## 팔레트 (목업 G 맵 — 코드에서도 이 이름 사용)

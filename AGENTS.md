@@ -32,6 +32,7 @@ npm run verify     # build + test + test:e2e — 태스크 완료 게이트
 7. **Math.random 금지** — `core/rng.ts`만 사용 (연출 포함).
 8. **의존성 추가 금지** — 현재 package.json에 있는 것만. 꼭 필요하면 태스크를 중단하고 사유를 보고.
 9. **비밀키**: .env는 읽되 값을 로그·커밋·번들에 노출 금지. `.env.example`만 갱신.
+10. **실존 확인되지 않은 외부 URL 기입 금지** — 특히 submission/ 의 영상 링크 등 "HUMAN-ONLY" 표기 항목은 절대 채우지 않는다 (사람이 실제 업로드 후 기입).
 
 ## 아키텍처 요약 (재사용 패턴)
 

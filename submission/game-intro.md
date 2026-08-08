@@ -26,7 +26,7 @@
 
 - 플레이: https://minsub0922.github.io/pixel-arcade-tycoon/
 - 소스: https://github.com/minsub0922/pixel-arcade-tycoon
-- 플레이 영상: (제출 시 확정 — YouTube 일부공개)
+- 플레이 영상: (HUMAN-ONLY — 사람이 실제 업로드 후 직접 기입. 에이전트 기입 금지)
 
 ## 스크린샷
 

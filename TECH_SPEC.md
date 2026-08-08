@@ -16,6 +16,8 @@ src/
   core/
     store.ts         단일 상태 트리 + subscribe + dispatch(액션) — 유일한 상태 변경 경로
     rng.ts           mulberry32 seeded RNG. Math.random 사용 금지(연출 포함 전부 이 모듈)
+    clock.ts         게임 타이밍 단일 소스 — 상태 로직에서 raw setTimeout/requestAnimationFrame 금지.
+                     after(ms, cb)/every(ms, cb) 를 제공하고, __GAME_TEST__.step(ms) = clock 전진 + 만기 콜백 동기 실행
     sim.ts           영업 시뮬·판정 룰 (GAME_DESIGN §5 수식 그대로, 순수 함수)
     economy.ts       코인·평판·주차 진행 (순수 함수)
     tags.ts          피드백 태그 파생·집계 → 다음 안건 생성
@@ -32,7 +34,9 @@ src/
     client.ts        LLM 어댑터 (아래)
     prompts.ts       프롬프트 빌더 (kind별)
     pools.ts         사전 생성 풀 로더·선택기 (seed 기반, 중복 회피)
-  data/              choices/personas/decisions/balance + pools/*.json
+  data/              ids.ts(모든 콘텐츠 ID 의 단일 정의 — pools/SCHEMA.md 표와 일치) + choices/personas/decisions/balance + pools/*.json
+  testing/
+    scenarios.ts     loadScenario() 용 사전 정의 상태 (import.meta.env.DEV 가드로 프로덕션 번들 제외)
   sound.ts           jsfxr 스타일 절차적 SFX (Web Audio, 외부 파일 없음)
 ```
 
@@ -56,8 +60,10 @@ UI 규칙: 로딩 스피너 금지 — 대기 중엔 '작업 중' 점 3개 말�
 ```
 
 - `pool` 모드: `src/data/pools/*.json`에서 컨텍스트 키(장르×결정×유형×만족구간)로 후보를 찾고 seed RNG로 선택, 세션 내 중복 회피. **pool 모드만으로 전 루프 완주 가능해야 한다.**
-- `proxy` 모드: `POST {VITE_LLM_PROXY_URL}/generate` `{kind, context}` → `{text}`. 프록시가 키 보관 (`cloudflare/`).
-- `direct` 모드: dev 전용. Gemini `generateContent` 직접 호출. **키는 .env, 절대 커밋·번들 금지** (`import.meta.env.DEV` 가드로 프로덕션 번들에서 코드 제거).
+- `proxy` 모드: `POST {VITE_LLM_PROXY_URL}/generate` (URL 조인 시 트레일링 슬래시 제거) body `{kind, context}` → `{text}`.
+  **context = `prompts.ts` 가 조립한 최종 유저 프롬프트 "문자열" (≤2000자)** — 객체를 보내면 프록시가 400 을 반환한다. 프록시가 키 보관 (`cloudflare/`).
+- `direct` 모드: dev 전용. Gemini `generateContent` 직접 호출. 키는 `vite.config.ts` 의 `__GEMINI_KEY_DEV__` define 으로만 접근 (dev 서버에서만 실제 값, 프로덕션 번들에서는 항상 '' — `import.meta.env` 로 키를 읽지 말 것: VITE_ 접두사가 없어 노출되지 않는 것이 의도된 설계다).
+- 응답 검증(모든 모드 공통): 문자열·비어있지 않음·길이 상한(대사 40자/이름 16자)·한국어 위주 — 부적합이면 풀 폴백. 타임아웃 후 늦게 도착한 응답은 폐기(중복 렌더 금지).
 
 ### 사전 생성 풀
 
@@ -66,7 +72,8 @@ UI 규칙: 로딩 스피너 금지 — 대기 중엔 '작업 중' 점 3개 말�
 ## 결정성·재현
 
 - 전역 RNG는 `rng.ts` 단일 인스턴스. `__GAME_TEST__.setSeed(n)` 후 동일 입력 시퀀스 = 동일 상태.
-- 연출 타이밍은 게임 결과에 영향 금지 (연출 스킵해도 상태 동일).
+- **스트림 분리**: 상태에 영향 주는 draw 는 기본 스트림(next/int/pick/roll), 연출·fx 는 `rng.fork('fx')` 등 파생 스트림 — 소비 순서가 서로 독립이라 연출을 스킵해도 상태 결과가 동일하다.
+- 연출 타이밍은 게임 결과에 영향 금지. 모든 타이머는 `core/clock.ts` 경유 (step 가속 가능해야 함).
 
 ## 테스트 인터페이스 (dev/test 빌드에서만)
 
@@ -75,11 +82,17 @@ window.__GAME_TEST__ = {
   setSeed(seed: number): void          // 새 게임 + seed 고정
   loadScenario(id: string): void       // tests/playtest/scenarios.ts 정의 상태로 점프
   getState(): GameState                // 구조체 스냅샷(직렬화 가능)
-  step(ms: number): void               // 시뮬·연출 타이머 강제 진행
+  step(ms: number): void               // 시뮬·연출 타이머 강제 진행 (가상 시간 — elapsedVirtualMs 에 누적)
   dispatch(action): void               // 액션 직접 주입(입력 시뮬)
-  getTelemetry(): Telemetry            // 사이클 수, 만족도 분포, 태그 집계, LLM 호출 수/모드
-  llmMode(): 'pool'|'proxy'|'direct'
+  getTelemetry(): Telemetry            // 아래 필드 필수
+  llmMode(): 'pool'|'proxy'|'direct'   // "마지막 generate 가 실제 사용한" 모드 (설정값 아님 — 폴백 검증용)
+  setLlmMode(mode: 'pool'|'proxy'|'direct'|'auto'): void  // 테스트에서 모드 강제 (S4)
 }
+
+// Telemetry 필수 필드 (QUALITY_BAR 게이트가 이 값으로 판정):
+// cycles, clicks(사용자 클릭 카운트), elapsedVirtualMs(실시간+step 누적 — A6·A7 판정 기준),
+// satisfactionByType, tagCounts, llmCalls{mode별}, spriteFallbackCount('?' 폴백 렌더 횟수 — A10),
+// sfxPlayedKinds(재생된 SFX 종류 집합 — T11 검증)
 ```
 
 Playwright는 이 인터페이스 + 실제 클릭 병행. 스크린샷 증거는 `evidence/`에 저장.
@@ -98,7 +111,9 @@ Playwright는 이 인터페이스 + 실제 클릭 병행. 스크린샷 증거는
 
 ## 배포
 
-- GitHub Pages: `.github/workflows/deploy.yml` — push(main) → build → Pages. `vite.config.ts` `base: '/pixel-arcade-tycoon/'`.
+- GitHub Pages **브랜치 배포**: `bash scripts/deploy-pages.sh` — build 후 dist 를 `gh-pages` 브랜치로 push (라이브: https://minsub0922.github.io/pixel-arcade-tycoon/). push(main)만으로는 배포되지 않는다 — 배포는 이 스크립트 실행이 필요.
+  (Actions 자동 배포 워크플로는 `deploy/pages-workflow.yml.disabled` 에 보류 — 현재 GitHub 토큰에 workflow 스코프가 없음. 사용자가 `gh auth refresh -h github.com -s workflow` 후 `.github/workflows/deploy.yml` 로 복원하면 push 자동 배포로 전환 가능.)
+- `vite.config.ts` `base: '/pixel-arcade-tycoon/'` (build 시에만).
 - 저장소 public (`minsub0922/pixel-arcade-tycoon`). 커밋 기록 유지 — squash 금지.
 - Cloudflare Workers 프록시: `cloudflare/` 참조 (사용자가 배포, 선택적). 배포 후 GitHub Actions 변수 `VITE_LLM_PROXY_URL` 설정 → 재배포로 라이브 모드 활성화. 미설정이어도 제출물은 pool 모드로 완전 동작.
 
