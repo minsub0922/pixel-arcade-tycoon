@@ -1,0 +1,373 @@
+# Pixel Arcade Tycoon — D-1 태스크 (순차 실행, 병렬 금지)
+# 규칙: AGENTS.md 필독. 완료 게이트 = 각 태스크 Verification 실제 수행 + evidence 저장.
+
+tasks:
+  - title: "T1 도트 스프라이트 시스템이 화면에서 살아 움직인다"
+    completed: false
+    description: |
+      Player outcome:
+      /#art 데모 라우트에서 팀원 4명·손님 4명(4포즈), 감정 아이콘 16종, 캐비닛 5스킨×4장르,
+      게임 썸네일 4종, 소품·타일이 목업과 동일한 도트로 렌더된다.
+
+      Why: 이후 모든 화면의 기반. 목업의 검증된 아트 시스템을 그대로 옮기는 것이 D-1 최선.
+
+      Scope:
+      - reference/mockup/Pixel Arcade Tycoon.dc.html 의 인라인 스크립트(<script type="text/x-dc"> 내부
+        'PX=(()=>' 부터 IIFE 끝까지)를 src/art/sprites.ts 로 TS 이식.
+        (팔레트 G, 캐릭터 파츠/CH 정의, chGrid, IC/IT/PR, propGrid, thumb, draw, paint, cab, tile)
+      - export: paint(canvas, spec, scale), tile(name), tileSize(name), PALETTE. DOM 스캔 헬퍼
+        mountSprites(root) 추가 (data-sprite/data-tile 속성 처리, 목업 paintAll 로직 참조).
+      - src/main.ts 에 해시 라우트 '#art' → 데모 시트 렌더 (그 외 해시는 기존 부트 화면 유지).
+      - style.css 에 ART_BIBLE 의 팔레트 CSS 변수·기본 클래스(패널/카드/버튼 5상태) 골격 추가.
+
+      Acceptance criteria:
+      - ch:pl|ds|dv|qa|st|st2|co|co2|of|ma × stand/walk/cheer/back × 표정이 에러 없이 렌더
+      - 미정의 spec 은 회색 '?' 16×16 폴백 (콘솔 error 없이 warn 1회)
+      - image-rendering: pixelated 적용, 캔버스 크기 = 그리드×scale 정확히 일치
+
+      Verification:
+      - command: npm run build && npm run test (sprites 유닛: chGrid 그리드 크기/팔레트 키 검증 추가)
+      - scenario: dev 서버 + Playwright 로 /#art 스크린샷
+      - expected result: 데모 시트가 목업 1c/1d 와 시각적으로 동일 계열
+
+      Required evidence: evidence/T1-art-sheet.png, devlog.md 항목
+
+      Dependencies: 없음
+      Out of scope: 게임 로직, 씬 UI (T2+)
+
+  - title: "T2 오락실 사장의 하루가 시작된다 — 부팅·HUD·씬 전환"
+    completed: false
+    description: |
+      Player outcome:
+      접속하면 도트 타이틀 → 회의실이 열리고, HUD(코인 10,000·평판 100·1주차·회의실/오락실 탭)가 보이며
+      탭으로 두 공간을 오간다. 회의실엔 팀원 4명이 테이블 주위에서 idle(bob) 중이고, 오락실엔 빈 슬롯 6개와
+      카펫 바닥이 보인다.
+
+      Why: 상태 기계와 렌더 파이프라인의 뼈대. 이후 태스크는 전부 이 위에 얹힌다.
+
+      Scope:
+      - core/store.ts (dispatch/subscribe, phase 전환), core/rng.ts (mulberry32), core/save.ts 스텁
+      - scenes/meeting.ts·arcade.ts 레이아웃 (목업 1a/1b 의 HUD·좌우 패널·씬 골격, 데이터는 초기 상태)
+      - 1440×900 스케일 fit (TECH_SPEC), window.__GAME_TEST__ (setSeed/getState/step/dispatch/getTelemetry 최소 구현)
+      - GAME_DESIGN §1 상태 기계 타입 정의 (phase: title|plan|meeting|decide|place|open|report|tryout)
+
+      Acceptance criteria:
+      - 탭 전환 < 100ms, 리사이즈 시 레터박스 유지, 콘솔 에러 0
+      - __GAME_TEST__.getState() 가 직렬화 가능한 상태 반환, setSeed 후 상태 리셋
+
+      Verification:
+      - command: npm run build && npm run test
+      - scenario: Playwright — 타이틀→회의실 진입, 탭 왕복, 1280×720 리사이즈 스크린샷
+      - expected result: 두 씬이 목업 구도와 일치, HUD 수치 표시
+
+      Required evidence: evidence/T2-meeting.png, evidence/T2-arcade.png
+
+      Dependencies: T1 (스프라이트)
+      Out of scope: 기획 선택·시뮬 (T3+), 저장 완성 (T10)
+
+  - title: "T3 기획을 고르면 우리 게임의 정체가 생긴다"
+    completed: false
+    description: |
+      Player outcome:
+      회의실에서 장르(4)·콘셉트(4)·타깃(4)·특징(4)을 고르면 좌측 기획 카드에 실시간 반영되고
+      (썸네일 장르·스티커·타깃), '제작 시작'을 누르면 게임 스탯(fun/polish/difficulty/bugs)이
+      룰대로 산출된 GameProject 가 생성된다. 이름은 임시 조합 규칙(콘셉트+장르 단어 결합, T9에서 LLM 대체).
+
+      Why: 창작 루프의 시작점. 선택→결과 인과의 첫 절반.
+
+      Scope:
+      - src/data/choices.ts·balance.ts (GAME_DESIGN §2 수치 그대로), core/economy.ts (제작 비용 차감)
+      - PLAN 단계 UI: 선택 버튼 그리드(5상태 스타일), 기획 보드 스티커 갱신, 제작 시작 CTA (자금 부족 비활성)
+
+      Acceptance criteria:
+      - Vitest: 선택 조합별 스탯 산출이 GAME_DESIGN §2 표와 일치 (최소 6조합 스냅샷)
+      - 같은 seed·같은 선택 = 같은 결과 (결정성)
+      - 클릭 수: 타이틀→제작 시작까지 ≤ 6
+
+      Verification:
+      - command: npm run test
+      - scenario: Playwright — S1 전반부(선택→제작 시작), 기획 카드 스크린샷
+      - expected result: 카드에 선택이 전부 반영, 코인 3,000 차감
+
+      Required evidence: evidence/T3-plan-card.png, 유닛 테스트 통과 로그
+
+      Dependencies: T2
+      Out of scope: 회의 연출·결정(T4)
+
+  - title: "T4 팀원들이 회의하고, 나의 결정이 게임을 바꾼다"
+    completed: false
+    description: |
+      Player outcome:
+      제작 시작 → 팀원 4명이 말풍선으로 3~5개 대사를 순차 재생(pool, 선택 반영)하고, 의견 충돌 칩이 뜨며,
+      하단에 안건 3택(재미/완성도/빠른 출시 + 팀원 추천 배지)이 나타난다. 결정하면 효과·소요 주차가 적용되고
+      게임 카드 스탯 바가 변한다.
+
+      Why: 멀티 에이전트 연출 + trade-off 선택 = 이 게임의 심장.
+
+      Scope:
+      - src/data/decisions.ts·personas.ts, llm/pools.ts (시드 풀 로더) — client.ts 전체는 T9
+      - MEETING/DECIDE UI (말풍선 큐 1.5s·동시 2개·스킵, 결정 바, 추천 배지 로직 = 성향 매칭)
+      - 결정 효과 적용 + 주차 진행 (economy)
+
+      Acceptance criteria:
+      - 재미/완성도 결정의 스탯 diff 가 GAME_DESIGN §3 표와 일치 (유닛)
+      - 말풍선 스킵해도 최종 상태 동일 (연출-상태 분리)
+      - 빈 말풍선 0 (pool 미스 시 기본 문구)
+
+      Verification:
+      - command: npm run test
+      - scenario: Playwright — 회의 재생~결정, S2 축소판(두 결정 비교 어서션)
+      - expected result: 결정별로 다른 스탯·다른 소요 주차
+
+      Required evidence: evidence/T4-meeting-bubbles.png, evidence/T4-decision-bar.png
+
+      Dependencies: T3
+      Out of scope: LLM 라이브(T9), 개선 안건 자동 생성(T6)
+
+  - title: "T5 손님들이 몰려와 내 게임을 평가한다 — 영업 시뮬"
+    completed: false
+    description: |
+      Player outcome:
+      완성된 게임 카드를 오락실 빈 슬롯에 배치(카드 클릭→슬롯 클릭)하면 캐비닛이 설치되고(장르 스크린·스킨),
+      '영업 시작' 시 손님들이 입장해 걷고, 기기 앞에서 플레이(뒷모습)하고, 머리 위 감정 칩(환호/실망 등)과
+      코인 이펙트가 뜬다. HUD 의 오늘 매출·방문객이 실시간 오른다.
+
+      Why: 반응 루프의 절반 — "내 게임에 반응한다"의 시각화.
+
+      Scope:
+      - core/sim.ts (GAME_DESIGN §5 판정 수식·방문 규모·유형 분포, 순수 함수 + 유닛 테스트 필수)
+      - OPEN 연출: 손님 스폰·경로 이동(단순 웨이포인트)·플레이·퇴장, 감정 칩·코인 플로트 (art/fx.ts)
+      - 영업 25초 연출 + '결산 보기' CTA. step() 가속 지원
+
+      Acceptance criteria:
+      - 동일 seed 영업 2회 = 동일 방문·동일 판정 (결정성 유닛)
+      - 유형별 판정 차이: 선호 장르 매칭 시 만족 상승 어서션 (마니아×러너 vs 학생×러너)
+      - 60fps 유지 (손님 12명 동시)
+
+      Verification:
+      - command: npm run test
+      - scenario: Playwright — 배치→영업, 감정 칩 노출 확인, FPS 샘플
+      - expected result: 손님 유형별 상이한 감정 칩, 매출 증가
+
+      Required evidence: evidence/T5-open-crowd.png, sim 유닛 로그
+
+      Dependencies: T4
+      Out of scope: 피드백 카드·결산(T6), 직접 플레이(T8)
+
+  - title: "T6 손님의 목소리가 데이터가 된다 — 결산·피드백·태그"
+    completed: false
+    description: |
+      Player outcome:
+      영업 종료 → 결산: 우측 패널에 손님 피드백 카드(아바타+대사+장점/단점/요청 태그), 유형별 만족도 바,
+      재플레이율·평균 플레이·이탈 지점, 태그 집계 칩(👍그래픽 41 스타일)이 표시된다. 태그 집계는
+      "다음 회의 안건"으로 변환되어 회의실 이동 버튼에 배지(!N)가 붙는다.
+
+      Why: 반응→개선을 잇는 다리. 피드백이 읽히고 쌓이는 감각.
+
+      Scope:
+      - core/tags.ts (판정 파생 태그 → 집계 → 안건 템플릿 선택), REPORT UI (목업 1b 우측 패널)
+      - 피드백 대사는 pool (유형×만족구간×태그 컨텍스트 키)
+      - 평판 반영 (GAME_DESIGN §6)
+
+      Acceptance criteria:
+      - 태그는 판정에서만 파생 (대사 내용과 무관 — 유닛으로 강제)
+      - S3 저성과 조합에서 부정 태그 우세 확인
+      - 안건 배지가 태그 상위 항목과 일치
+
+      Verification:
+      - command: npm run test
+      - scenario: Playwright — S1 결산 패널, S3 저성과 결산
+      - expected result: 결산 데이터가 시뮬 결과와 정합
+
+      Required evidence: evidence/T6-report.png, evidence/T6-report-bad.png
+
+      Dependencies: T5
+      Out of scope: 개선 실행(T7)
+
+  - title: "T7 피드백을 반영하면 손님이 알아본다 — 개선 루프와 기억 (슬라이스 완주)"
+    completed: false
+    description: |
+      Player outcome:
+      결산 후 회의실로 가면 피드백 기반 안건이 자동 제시되고, 개선(2,000₩)을 결정하면 스탯이 변하며 버전 +0.1.
+      재영업 시 이전에 실망했던 유형이 개선을 언급하고("지난번보다 …"), 만족도·별점이 오른다.
+      팀원 EXP·레벨업 배지·기억 카드가 생성된다. — 여기서 S1 풀 시나리오가 처음으로 완주된다.
+
+      Why: 수직 슬라이스의 완성. memory·self-improvement 증명 장면.
+
+      Scope:
+      - core/memory.ts (방문 이력, 기억 카드 조건, 재방문 대사 트리거), 팀원 EXP/레벨/배지 (GAME_DESIGN §4)
+      - 개선 결정 플로우 (안건 자동 생성 연결), 업그레이드 비용·주차 진행
+      - tests/playtest S1 전체 + S2·S3 완성
+
+      Acceptance criteria:
+      - S1 기대 상태·텔레메트리 전부 충족 (3분·1.5사이클·재방문 대사 ≥1)
+      - S2: 결정 분기 diff 어서션, S3: 회복 곡선 어서션
+      - 기억 카드가 이후 회의 추천 배지에 영향 (+3 보정 유닛)
+
+      Verification:
+      - command: npm run verify
+      - scenario: S1, S2, S3
+      - expected result: 3개 시나리오 green + 증거 스크린샷 자동 저장
+
+      Required evidence: evidence/T7-revisit-line.png, evidence/T7-levelup.png, S1~S3 통과 로그
+
+      Dependencies: T6
+      Out of scope: 러너 조작(T8), LLM 라이브(T9)
+
+  - title: "T8 심사자가 직접 조작한다 — 러너 TRYOUT"
+    completed: false
+    description: |
+      Player outcome:
+      배치된 러너 기기를 클릭 → '직접 플레이' → 전체 화면 러너(원버튼 점프)가 뜬다. 내 게임의 스탯이
+      실제 난이도·스킨·연출로 나타나고(GAME_DESIGN §8), 죽으면 점수가 기기 '오늘 최고 점수'로 남고
+      오락실로 돌아온다.
+
+      Why: 공고 요건 "심사자가 직접 플레이" + "게임이 진짜 존재한다"는 증명.
+
+      Scope:
+      - scenes/tryout.ts — 단일 canvas 루프 (고정 dt 시뮬, 스프라이트는 sprites.ts, 코스 생성은 rng)
+      - difficulty→속도·장애물 밀도 / polish→배경 레이어·파티클 / bugs≥3→웃긴 판정 버그 연출 / concept→팔레트 스킨
+      - 진입·복귀 (ESC, 충돌), 점수 기록
+
+      Acceptance criteria:
+      - 입력→점프 반응 < 100ms, 60fps
+      - difficulty 20 vs 80 에서 장애물 밀도·속도 차이 (S7 어서션)
+      - TRYOUT 점수는 경제에 영향 없음 (사장 시연)
+
+      Verification:
+      - command: npm run test (러너 코스 생성 결정성 유닛)
+      - scenario: S7
+      - expected result: S7 green + 두 난이도 스크린샷
+
+      Required evidence: evidence/T8-runner-easy.png, evidence/T8-runner-hard.png
+
+      Dependencies: T7
+      Out of scope: 타 장르 조작 (non-goal)
+
+  - title: "T9 살아있는 AI가 말한다 — LLM 어댑터·프록시·풀 확충"
+    completed: false
+    description: |
+      Player outcome:
+      프록시가 설정된 환경에선 회의 대사·게임 이름·피드백이 매번 새로 생성되고(기획·성향·기억 반영),
+      네트워크가 죽거나 프록시가 없어도 플레이어는 차이를 못 느낀다(무공지 pool 폴백).
+
+      Why: 심사 서사의 핵심 — L3 라이브 + 견고한 폴백 구조.
+
+      Scope:
+      - llm/client.ts 3단 어댑터 (TECH_SPEC 규약: mode 판정·2.5s 타임아웃·sessionStorage 캐시·사이클당 3회 상한)
+      - llm/prompts.ts (kind 별: 시스템 규칙=한국어·40자·캐릭터 말투, 컨텍스트=기획·결정·성향·기억·이력)
+      - naming 을 LLM/풀 기반으로 교체 (T3 임시 규칙 대체), 시드 풀 확충 (kind×키 조합당 후보 ≥4)
+      - scripts/pregen.mjs 완성 (GEMINI_API_KEY 로 풀 재생성 — 실행은 선택)
+
+      Acceptance criteria:
+      - S4 a/b/c 전부 green (pool 완주·타임아웃 폴백·오류 폴백)
+      - 프로덕션 번들에 GEMINI_API_KEY 참조·값 부재 (build 산출물 grep)
+      - 대사 길이·금칙(숫자 변경 지시 무시) 검증 유닛
+
+      Verification:
+      - command: npm run verify && grep -r "GEMINI" dist/ (매치 0 확인, 빌드 산출물 검사)
+      - scenario: S4
+      - expected result: 세 케이스 모두 무공지 진행
+
+      Required evidence: evidence/T9-llm-fallback-trace.txt (llmMode 로그), S4 통과 로그
+
+      Dependencies: T7 (T8과 순서 교환 가능하나 순차 유지)
+      Out of scope: 프록시 실제 배포 (사용자 작업, cloudflare/DEPLOY.md)
+
+  - title: "T10 껐다 켜도 내 오락실이 그대로 있다 — 저장·온보딩"
+    completed: false
+    description: |
+      Player outcome:
+      리로드하면 '이어하기 / 새 게임' 도트 타이틀이 뜨고 이어하기로 정확히 복원된다. 첫 방문자에겐
+      코치마크 오버레이(팝업 아님, 화면 위 도트 화살표+한 줄 힌트 3개)가 다음 행동을 알려준다.
+
+      Why: 심사자 재접속·중도 이탈 대비 + 무설명 이해(A7).
+
+      Scope:
+      - core/save.ts 완성 (버전 필드, 자동 저장 시점 = phase 전환마다, 오염 방어)
+      - 타이틀 화면(이어하기 분기), 코치마크 3단계 (plan→제작 시작→영업)
+
+      Acceptance criteria: S5 green, 코치마크는 1회만 표시(저장에 기록), 코치마크 표시 중에도 조작 가능
+
+      Verification:
+      - command: npm run test:e2e
+      - scenario: S5
+      - expected result: 복원 상태 동일성 deep-equal, 오염 시 새 게임
+
+      Required evidence: evidence/T10-title-continue.png, S5 로그
+
+      Dependencies: T7
+      Out of scope: 멀티 슬롯 (non-goal)
+
+  - title: "T11 만지는 맛이 난다 — SFX·주스 폴리시"
+    completed: false
+    description: |
+      Player outcome:
+      클릭·결정·코인·환호·실망·레벨업·점프·충돌에 8bit 효과음이 나고(M 음소거), 결정 확정 시 화면 펀치,
+      코인 획득 플로트, 결산 등장 슬라이드, 레벨업 글로우 등 모든 상호작용에 즉각 반응이 붙는다.
+
+      Why: QUALITY_BAR B '템포·조작감' — 심사 첫인상.
+
+      Scope: sound.ts (Web Audio 절차 SFX 8종), fx 강화 (기존 이펙트 일괄 점검), 씬 전환 도트 와이프
+
+      Acceptance criteria: 오디오 컨텍스트는 첫 입력 후 시작(자동재생 정책), 음소거 상태 저장,
+      연출 추가 후에도 S1 텔레메트리(3분) 유지 — 연출이 템포를 깎으면 줄인다
+
+      Verification:
+      - command: npm run verify
+      - scenario: S1 재실행 (시간 예산 재확인)
+      - expected result: 전 시나리오 green 유지
+
+      Required evidence: evidence/T11-fx.png, devlog (사운드 파라미터 기록)
+
+      Dependencies: T8, T10
+      Out of scope: BGM (non-goal)
+
+  - title: "T12 어떤 화면에서도 깨지지 않는다 — 반응형·모바일 확인"
+    completed: false
+    description: |
+      Player outcome: 1440×900 외 해상도(1280×720, 노트북 1512×982)와 모바일 landscape(844×390)에서
+      레터박스 스케일로 온전히 보이고 터치로 전 루프 진행 가능. portrait 에선 "가로로 돌려주세요" 도트 안내.
+
+      Why: 공고 — 심사자 환경을 모른다.
+
+      Scope: 스케일 fit 검증·수정, 터치 이벤트(click 통합), portrait 가드, meta viewport
+
+      Acceptance criteria: A8 게이트, 터치로 S1 전반부 진행 (Playwright touch 에뮬레이션)
+
+      Verification:
+      - command: npm run test:e2e (뷰포트 매트릭스)
+      - scenario: S1 축소판 × 3 뷰포트
+      - expected result: 렌더 깨짐 0, 조작 가능
+
+      Required evidence: evidence/T12-viewports.png (3장 합성 또는 개별)
+
+      Dependencies: T11
+      Out of scope: portrait 전용 레이아웃
+
+  - title: "T13 심사자가 받아볼 최종 패키지 — 배포·문서 정합"
+    completed: false
+    description: |
+      Player outcome(심사자): GitHub Pages 링크 클릭 → 즉시 플레이. README 에서 실행법·스크린샷 확인.
+      submission/ 문서가 실제 구현과 일치.
+
+      Why: 제출 그 자체.
+
+      Scope:
+      - README.md 갱신 (플레이 링크, 스크린샷 3장, 로컬 실행법, 조작법)
+      - submission/game-intro.md·ai-tech-doc.md 를 최종 구현 기준으로 갱신 (프롬프트 전문, 아키텍처 다이어그램 텍스트,
+        에셋 출처 표 = 전부 코드 생성 + NeoDunggeunmo/Galmuri 폰트 출처, devlog 요약 반영)
+      - 프로덕션 빌드 점검: base 경로, 404 리소스 0, Lighthouse 성능 확인(선택)
+      - QUALITY_BAR A 게이트 전체 재실행
+
+      Acceptance criteria: npm run verify green, dist preview 에서 S1 수동 1회 완주, 문서-구현 불일치 0
+
+      Verification:
+      - command: npm run verify && npm run preview
+      - scenario: S1 (preview 빌드 대상)
+      - expected result: 전부 green
+
+      Required evidence: evidence/T13-final-meeting.png, evidence/T13-final-arcade.png, evidence/T13-final-runner.png
+
+      Dependencies: T12
+      Out of scope: 영상 촬영·PDF 변환·폼 제출 (사람 작업), Pages 배포 트리거는 push 로 자동

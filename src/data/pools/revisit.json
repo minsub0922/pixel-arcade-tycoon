@@ -1,0 +1,6 @@
+{
+  "student": ["오! {improvement} 좋아진 거 실화? 다시 왔다!", "지난번보다 {improvement} 나아졌네, 인정!"],
+  "college": ["{improvement} 바뀐 거 보고 다시 왔지", "개선 속도 보게? {improvement} 확실히 좋아졌어"],
+  "office": ["{improvement} 개선됐네요. 다시 들를 만해요", "지난주보다 {improvement} 좋아져서 놀랐습니다"],
+  "mania": ["흠, {improvement} 손봤군. 만든 놈이 듣고 있었어", "지난번 불만을 고쳤군. {improvement} 합격일세"]
+}

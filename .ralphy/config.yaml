@@ -1,0 +1,22 @@
+project:
+  name: "pixel-arcade-tycoon"
+  language: "typescript"
+  framework: "vite-vanilla"
+
+commands:
+  lint: "npm run typecheck"
+  build: "npm run build"
+  test: "npm run verify"
+
+capabilities:
+  browser: "auto"
+
+rules:
+  - "Before coding, study PRODUCT.md, AGENTS.md and the specs referenced by the task (GAME_DESIGN.md / TECH_SPEC.md / ART_BIBLE.md / PLAYTEST_SCENARIOS.md)"
+  - "Work on exactly one player-outcome task per iteration, in order"
+  - "Run the game and verify observable behavior before completion; save required evidence to evidence/"
+  - "Do not weaken tests, scenarios, or quality gates"
+  - "Do not add dependencies; do not touch reference/ or .env; never expose API keys in code, logs, or bundles"
+  - "All art through src/art/sprites.ts; palette and pixel rules per ART_BIBLE.md; no popups/modals"
+  - "All randomness through core/rng.ts (seeded); LLM output may only set display strings, never numbers"
+  - "Do not modify unrelated systems; append a short entry to devlog.md each iteration"

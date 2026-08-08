@@ -1,0 +1,11 @@
+name = "pixel-arcade-llm"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+GEMINI_MODEL = "gemini-2.5-flash-lite"
+# 배포된 게임 오리진만 허용 (localhost 는 dev 확인용). 필요 시 수정.
+ALLOW_ORIGINS = "https://minsub0922.github.io,http://localhost:5173,http://localhost:4173"
+
+# secret 은 파일에 쓰지 않는다:
+#   npx wrangler secret put GEMINI_API_KEY

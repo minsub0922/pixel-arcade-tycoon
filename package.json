@@ -1,0 +1,23 @@
+{
+  "name": "pixel-arcade-tycoon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "AI 팀원들과 도트 게임을 만들고, AI 손님들의 반응을 보며 게임을 키워가는 오락실 타이쿤 — NAN 2026 사전과제",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "verify": "npm run build && npm run test && npm run test:e2e",
+    "pregen": "node scripts/pregen.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.0",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}
