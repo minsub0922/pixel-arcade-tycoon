@@ -348,6 +348,12 @@ const FALLBACK: string[] = (() => {
   return g.map((r) => r.join(''))
 })()
 const warned = new Set<string>()
+let fallbacks = 0
+
+/** '?' 폴백 렌더 누적 횟수 — telemetry.spriteFallbackCount (QUALITY_BAR A10) */
+export function fallbackCount(): number {
+  return fallbacks
+}
 
 /**
  * 스프라이트 렌더. spec = 'ch:pl:stand:happy' | 'icon:bulb' | 'item:laptop' |
@@ -396,6 +402,7 @@ export function paint(cv: HTMLCanvasElement, spec: string, s: number): boolean {
     warned.add(spec)
     console.warn(`[sprites] 미정의 spec "${spec}" — 회색 ? 폴백으로 렌더`)
   }
+  fallbacks++
   draw(cv, FALLBACK, G, s)
   return false
 }

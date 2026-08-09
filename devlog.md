@@ -14,3 +14,10 @@
 - 사용자의 Claude Design 목업(Pixel Arcade Tycoon mockups) 원본 HTML+스프라이트 엔진을 브라우저 자동화(콘솔 API·다운로드)로 추출해 `reference/mockup/` 확보 — 아트 시스템을 발명하지 않고 이식하기로 결정 (DECISIONS #6·#7).
 - 명세 7종 + tasks.yaml 13태스크 + 스캐폴드(Vite/TS/Vitest/Playwright) + Workers 프록시 + 시드 대사 풀 작성.
 - 배움: 정적 배포에서 LLM 키 노출 문제 → 프록시(키는 서버 secret) + 커밋된 사전 생성 풀 폴백의 3단 구조로 해결. 게임 수치는 LLM 경계 밖(결정론적 룰 엔진)에 두어 재현성·심사 안정성 확보.
+
+## 2026-08-09 09:35 · Ralphy iteration 2 (T2)
+
+- 상태 기계·렌더 뼈대 완성: `core/store.ts`(dispatch/subscribe, phase 8종 + 탭), `core/clock.ts`(가상 시간 단일 소스, step 가속), `core/save.ts` 스텁, 씬 3종(타이틀/회의실/오락실) + HUD, 목업 1a/1b CSS 이식(~170줄), `__GAME_TEST__` 실구현(setSeed/getState/step/dispatch/getTelemetry).
+- 직전 중단된 이터레이션의 워킹 트리(store/clock/meeting 등)를 검증 후 회수하고, 빠진 조각(arcade 씬·CSS·main 배선·테스트)을 채우는 방식으로 진행 — 재작성 없이 이어붙임.
+- 검증: 유닛 25(신규 store 7·clock 6) + e2e 8(탭 전환 <100ms 동기 렌더 측정, 1280×720 레터박스, 폴백 스프라이트 0) 전부 green. 증거: evidence/T2-meeting.png·T2-arcade.png.
+- 배움: 씬 = render(state) 전체 재생성 + `mountSprites` 캐시(painted key) 조합이면 diff 없이도 탭 전환이 동기(<1ms)로 끝난다 — T2 규모에선 가상 DOM 불필요.
